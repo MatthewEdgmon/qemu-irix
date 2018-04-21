@@ -8290,6 +8290,38 @@ static int host_to_target_cpu_mask(const unsigned long *host_mask,
 }
 #endif
 
+// executes the specified program in a QEMU VM
+static int qemu_execve(const char *filename, char **argv, char **envp)
+{
+    int target_argc = 0;
+    char **exec_argv;
+    int i;
+    const char *fname = path(filename);
+
+    // count number of arguments the target program is passing
+    while (argv[target_argc] != NULL)
+        target_argc++;
+
+    exec_argv = g_malloc((qemu_argc + target_argc + 1) * sizeof(*exec_argv));
+
+    // add qemu args
+    for (i = 0; i < qemu_argc; i++)
+        exec_argv[i] = qemu_argv[i];
+
+    // add target program args
+    exec_argv[qemu_argc + 0] = (char *)fname;
+    for (i = 1; i < target_argc; i++)
+        exec_argv[qemu_argc + i] = argv[i];
+
+    // end with a null pointer
+    exec_argv[qemu_argc + target_argc] = NULL;
+
+    int ret = safe_execve(exec_argv[0], exec_argv, envp);
+
+    g_free(exec_argv);
+    return ret;
+}
+
 /* do_syscall() should always have a single exit point at the end so
    that actions, such as logging of syscall results, can be performed.
    All errnos that do_syscall() returns must be -TARGET_<errcode>. */
@@ -8624,7 +8656,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
              * before the execve completes and makes it the other
              * program's problem.
              */
-            ret = get_errno(safe_execve(path(p), argp, envp));
+            ret = get_errno(qemu_execve(p, argp, envp));
             unlock_user(p, arg1, 0);
 
             goto execve_end;
