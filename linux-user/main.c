@@ -106,13 +106,17 @@ const char *qemu_uname_release;
    by remapping the process stack directly at the right place */
 unsigned long guest_stack_size = 8 * 1024 * 1024UL;
 
+static int silent;
+
 void gemu_log(const char *fmt, ...)
 {
-    va_list ap;
+    if (!silent) {
+        va_list ap;
 
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
+        va_start(ap, fmt);
+        vfprintf(stderr, fmt, ap);
+        va_end(ap);
+    }
 }
 
 #if defined(TARGET_I386)
@@ -4575,6 +4579,11 @@ static void handle_arg_version(const char *arg)
     exit(EXIT_SUCCESS);
 }
 
+static void handle_arg_silent(const char *arg)
+{
+    silent = 1;
+}
+
 static char *trace_file;
 static void handle_arg_trace(const char *arg)
 {
@@ -4635,6 +4644,8 @@ static const struct qemu_argument arg_table[] = {
      "",           "[[enable=]<pattern>][,events=<file>][,file=<file>]"},
     {"version",    "QEMU_VERSION",     false, handle_arg_version,
      "",           "display version information and exit"},
+    {"silent",     "",                 false, handle_arg_silent,
+     "",           "silence all logging"},
     {NULL, NULL, false, NULL, NULL, NULL}
 };
 
